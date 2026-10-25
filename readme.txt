@@ -1,0 +1,5 @@
+pw db : acaacantik160509
+email owner : keisa.owner@gmail.com
+pw : acaacantik
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5wY2tpYnlrd2FxamNyYXJmYmt2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MTUwNDAsImV4cCI6MjEwODQ5MTA0MH0.1V_f4LwpNX9fxSpQtzxn_56y5ftgcBIEZIplTVr7beA
