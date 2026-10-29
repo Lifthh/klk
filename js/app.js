@@ -160,17 +160,25 @@ async function viewGuest() {
     grid.innerHTML = list.map(p => {
       const imgs = [p.image, p.image2, p.image3].filter(Boolean);
       const multi = imgs.length > 1;
+      const descText = (p.desc || '').trim();
       return `
-        <article class="card">
+        <article class="card" data-id="${p.id}">
           <div class="thumb ${multi ? 'multi' : ''}" ${multi ? 'tabindex="0" role="button" aria-label="Ganti foto ' + esc(p.name) + '"' : ''}>
             ${imgs.length ? imgs.map((s, i) => `<img class="${i === 0 ? 'on' : ''}" src="${esc(s)}" alt="${esc(p.name)} foto ${i + 1}">`).join('') : esc(p.name.charAt(0).toUpperCase())}
             ${multi ? `<span class="dots">${imgs.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : ''}
           </div>
           <div class="body">
             ${p.category ? `<span class="cat">${esc(p.category)}</span>` : ''}
-            <h3>${esc(p.name)}</h3>
+            <h3 class="card-title" title="${esc(p.name)}">${esc(p.name)}</h3>
             <div class="price">${rupiah(p.price)}</div>
-            <p>${esc(p.desc)}</p>
+            ${descText ? `
+              <p class="desc-snippet">${esc(descText)}</p>
+              <button type="button" class="btn-readmore" data-id="${p.id}">Baca selengkapnya...</button>
+            ` : ''}
+            <button type="button" class="btn-order" data-id="${p.id}" aria-label="Pesan ${esc(p.name)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Order
+            </button>
           </div>
         </article>
       `;
@@ -215,6 +223,36 @@ async function viewGuest() {
     showImage(t, 0);
   };
   grid.onclick = e => {
+    // Klik tombol "Baca selengkapnya" -> Buka modal detail
+    const readMoreBtn = e.target.closest('.btn-readmore');
+    if (readMoreBtn) {
+      e.stopPropagation();
+      const p = activeProducts.find(item => String(item.id) === String(readMoreBtn.dataset.id));
+      if (p) openDetailModal(p);
+      return;
+    }
+
+    // Klik tombol "Order" -> Buka modal pilihan admin
+    const orderBtn = e.target.closest('.btn-order');
+    if (orderBtn) {
+      e.stopPropagation();
+      const p = activeProducts.find(item => String(item.id) === String(orderBtn.dataset.id));
+      if (p) openOrderModal(p);
+      return;
+    }
+
+    // Klik judul kartu -> Buka modal detail
+    const titleClick = e.target.closest('.card-title');
+    if (titleClick) {
+      const card = titleClick.closest('.card');
+      if (card) {
+        const p = activeProducts.find(item => String(item.id) === String(card.dataset.id));
+        if (p) openDetailModal(p);
+      }
+      return;
+    }
+
+    // Klik foto multi -> Ganti foto berikutnya
     const t = e.target.closest('.multi');
     if (t) nextImage(t);
   };
@@ -228,6 +266,163 @@ async function viewGuest() {
   drawChips();
   drawGrid();
 }
+
+// ----------------- MODAL POPUP (DETAIL & ORDER) -----------------
+// Modal Detail Produk Lengkap (Baca Selengkapnya)
+function openDetailModal(p) {
+  const modalContainer = $('#modalContainer');
+  if (!modalContainer) return;
+
+  const imgs = [p.image, p.image2, p.image3].filter(Boolean);
+  const multi = imgs.length > 1;
+
+  modalContainer.innerHTML = `
+    <div class="modal-backdrop" id="detailModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <div class="modal-card">
+        <button type="button" class="modal-close" id="closeDetailModal" aria-label="Tutup detail">&times;</button>
+        <div class="modal-body">
+          <div class="modal-thumb ${multi ? 'multi' : ''}" id="modalThumb" ${multi ? 'tabindex="0" role="button" title="Sentuh untuk ganti foto"' : ''}>
+            ${imgs.length ? imgs.map((s, i) => `<img class="${i === 0 ? 'on' : ''}" src="${esc(s)}" alt="${esc(p.name)} foto ${i + 1}">`).join('') : esc(p.name.charAt(0).toUpperCase())}
+            ${multi ? `<span class="dots">${imgs.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</span>` : ''}
+          </div>
+          ${p.category ? `<span class="cat">${esc(p.category)}</span>` : ''}
+          <h2 id="detailTitle" style="margin: 6px 0 8px; font-size: 1.25rem; color: var(--ink); line-height: 1.3;">${esc(p.name)}</h2>
+          <div class="price" style="font-size: 1.25rem; font-weight: 700; color: var(--accent); margin-bottom: 12px;">${rupiah(p.price)}</div>
+          
+          <div style="font-weight: 600; font-size: 0.88rem; color: var(--muted); margin-bottom: 6px;">Informasi &amp; Deskripsi Lengkap:</div>
+          <div class="modal-desc">${esc(p.desc || 'Tidak ada keterangan tambahan.')}</div>
+          
+          <button type="button" class="btn primary" id="btnModalOrder" style="width: 100%; padding: 12px; font-size: 1rem; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            Order Sekarang
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const backdrop = $('#detailModalBackdrop');
+  requestAnimationFrame(() => backdrop.classList.add('show'));
+
+  const closeModal = () => {
+    backdrop.classList.remove('show');
+    setTimeout(() => { modalContainer.innerHTML = ''; }, 250);
+  };
+
+  $('#closeDetailModal').onclick = closeModal;
+  backdrop.onclick = e => {
+    if (e.target === backdrop) closeModal();
+  };
+
+  if (multi) {
+    const thumb = $('#modalThumb');
+    let idx = 0;
+    const ims = thumb.querySelectorAll('img');
+    const dts = thumb.querySelectorAll('.dots i');
+    thumb.onclick = () => {
+      idx = (idx + 1) % ims.length;
+      ims.forEach((img, i) => img.classList.toggle('on', i === idx));
+      dts.forEach((dot, i) => dot.classList.toggle('on', i === idx));
+    };
+  }
+
+  $('#btnModalOrder').onclick = () => {
+    closeModal();
+    openOrderModal(p);
+  };
+}
+
+// Modal Pilih Admin Order WhatsApp
+function openOrderModal(p) {
+  const modalContainer = $('#modalContainer');
+  if (!modalContainer) return;
+
+  const contacts = (typeof ADMIN_CONTACTS !== 'undefined' && Array.isArray(ADMIN_CONTACTS) && ADMIN_CONTACTS.length)
+    ? ADMIN_CONTACTS
+    : [
+        { name: 'Admin 1', phone: '628212769293' },
+        { name: 'Admin 2', phone: '6285287140773' },
+        { name: 'Admin 3', phone: '6282321982264' }
+      ];
+
+  const defaultMsg = typeof ORDER_MESSAGE !== 'undefined' ? ORDER_MESSAGE : 'mauu orderr donng kaa';
+
+  modalContainer.innerHTML = `
+    <div class="modal-backdrop" id="orderModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="orderTitle">
+      <div class="modal-card modal-order">
+        <button type="button" class="modal-close" id="closeOrderModal" aria-label="Tutup pilihan admin">&times;</button>
+        <div class="modal-body">
+          <div style="text-align: center; margin-bottom: 14px;">
+            <div style="font-size: 2rem; margin-bottom: 4px;">💬</div>
+            <h2 id="orderTitle" style="margin: 0 0 6px; font-size: 1.2rem; color: var(--ink);">Pilih Admin Pemesanan</h2>
+            <p style="margin: 0; font-size: 0.88rem; color: var(--muted);">
+              Mau order <strong>${esc(p.name)}</strong> (${rupiah(p.price)})? Silakan pilih salah satu admin di bawah:
+            </p>
+          </div>
+
+          <div class="admin-list">
+            ${contacts.map((admin) => `
+              <button type="button" class="btn-admin" data-phone="${esc(admin.phone)}" data-name="${esc(admin.name)}">
+                <div class="admin-icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm.01 18.06c-1.5 0-2.97-.4-4.25-1.16l-.3-.18-3.13.82.84-3.05-.2-.31c-.83-1.33-1.27-2.88-1.27-4.46 0-4.48 3.65-8.12 8.13-8.12 2.17 0 4.21.85 5.74 2.38 1.54 1.54 2.38 3.57 2.38 5.74 0 4.49-3.65 8.12-8.13 8.12zm4.45-6.09c-.24-.12-1.44-.71-1.66-.79-.23-.08-.39-.12-.56.12-.17.24-.64.79-.79.95-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.95-1.21-.72-.64-1.21-1.44-1.35-1.68-.14-.24-.02-.37.1-.49.11-.11.24-.29.36-.43.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.56-1.35-.76-1.85-.2-.48-.4-.42-.56-.43h-.47c-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02s.87 2.35.99 2.51c.12.16 1.72 2.62 4.16 3.67.58.25 1.03.4 1.39.51.58.19 1.12.16 1.54.1.47-.07 1.44-.59 1.64-1.15.2-.57.2-1.05.14-1.15-.06-.1-.22-.16-.46-.28z"/>
+                  </svg>
+                </div>
+                <div class="admin-info">
+                  <span class="admin-name">${esc(admin.name)}</span>
+                  <span class="admin-status">🟢 Chat via WhatsApp</span>
+                </div>
+                <span class="admin-arrow">&rarr;</span>
+              </button>
+            `).join('')}
+          </div>
+
+          <div style="font-size: 0.78rem; text-align: center; color: var(--muted); margin-top: 10px;">
+            Pesan otomatis: <em>&ldquo;${esc(defaultMsg)}&rdquo;</em>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const backdrop = $('#orderModalBackdrop');
+  requestAnimationFrame(() => backdrop.classList.add('show'));
+
+  const closeModal = () => {
+    backdrop.classList.remove('show');
+    setTimeout(() => { modalContainer.innerHTML = ''; }, 250);
+  };
+
+  $('#closeOrderModal').onclick = closeModal;
+  backdrop.onclick = e => {
+    if (e.target === backdrop) closeModal();
+  };
+
+  backdrop.querySelectorAll('.btn-admin').forEach(btn => {
+    btn.onclick = () => {
+      const rawPhone = btn.dataset.phone || '';
+      const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+      const text = `${defaultMsg}\n\n*Nama Produk:* ${p.name}\n*Harga:* ${rupiah(p.price)}`;
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+      window.open(waUrl, '_blank');
+      closeModal();
+    };
+  });
+}
+
+// Tutup modal jika tombol Escape ditekan
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const backdrop = document.querySelector('.modal-backdrop.show');
+    if (backdrop) {
+      backdrop.classList.remove('show');
+      setTimeout(() => {
+        const mc = $('#modalContainer');
+        if (mc) mc.innerHTML = '';
+      }, 250);
+    }
+  }
+});
 
 // ----------------- LOGIN VIEW (TERSEMBUNYI UNTUK OWNER) -----------------
 function viewLogin() {
