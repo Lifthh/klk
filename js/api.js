@@ -167,18 +167,24 @@ async function apiGetCategories() {
 }
 
 async function apiAddCategory(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return;
+
   if (!supabaseClient) {
     let list = await apiGetCategories();
-    if (!list.includes(name)) {
-      list.push(name);
+    if (!list.includes(trimmed)) {
+      list.push(trimmed);
       localStorage.setItem('klk_mock_cats', JSON.stringify(list));
     }
     return;
   }
   const { error } = await supabaseClient
     .from('categories')
-    .insert([{ name }]);
-  if (error) throw error;
+    .insert([{ name: trimmed }]);
+  if (error) {
+    if (error.code === '23505') throw new Error('Kategori sudah ada');
+    throw error;
+  }
 }
 
 async function apiDeleteCategory(name) {
@@ -188,11 +194,16 @@ async function apiDeleteCategory(name) {
     localStorage.setItem('klk_mock_cats', JSON.stringify(list));
     return;
   }
-  const { error } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from('categories')
     .delete()
-    .eq('name', name);
+    .eq('name', name)
+    .select();
+
   if (error) throw error;
+  if (data && data.length === 0) {
+    throw new Error('Izin Supabase menolak penghapusan. Jalankan script SQL perbaikan izin RLS.');
+  }
 }
 
 // ----------------- UPLOAD FOTO KE SUPABASE STORAGE -----------------

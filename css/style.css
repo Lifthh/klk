@@ -776,3 +776,52 @@ img, input, select, textarea, button {
     width: calc(100% - 28px);
   }
 }
+
+/* Give the desktop search field more room while keeping it fluid on mobile. */
+@media (min-width: 701px) {
+  .search {
+    max-width: 620px;
+    padding: 14px 20px;
+  }
+}
+
+/* Polished search control */
+.search {
+  display: block;
+  width: min(100%, 680px);
+  max-width: 680px;
+  min-height: 56px;
+  padding: 14px 20px 14px 54px;
+  border: 1px solid #f4b6d0;
+  border-radius: 16px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%239a5f7d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 20px center;
+  box-shadow: 0 5px 16px rgba(145, 57, 98, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.search::placeholder {
+  color: #9a7890;
+  opacity: 1;
+}
+
+.search:hover {
+  border-color: #ed8db5;
+  box-shadow: 0 7px 20px rgba(145, 57, 98, 0.12);
+}
+
+.search:focus {
+  border-color: var(--accent);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(232, 49, 127, 0.12), 0 7px 20px rgba(145, 57, 98, 0.1);
+  outline: none;
+}
+
+@media (max-width: 480px) {
+  .search {
+    width: 100%;
+    min-height: 52px;
+  }
+}

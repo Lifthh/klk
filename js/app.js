@@ -126,12 +126,18 @@ async function viewGuest() {
   }
 
   const activeProducts = products.filter(p => p.active);
-  const cats = categories.length ? categories : [...new Set(activeProducts.map(p => p.category).filter(Boolean))].sort();
+  // HANYA kategori yang memiliki produk aktif yang akan dimunculkan ke pengunjung
+  const cats = [...new Set(activeProducts.map(p => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   if (activeCat && !cats.includes(activeCat)) activeCat = '';
 
   const chipsContainer = $('#chips');
   const drawChips = () => {
+    // Jika tidak ada produk atau hanya ada 1 kategori, tidak perlu tampil tombol filter berlebihan
+    if (cats.length <= 1) {
+      chipsContainer.innerHTML = '';
+      return;
+    }
     chipsContainer.innerHTML = ['', ...cats].map(c =>
       `<button class="chip" data-c="${esc(c)}" aria-pressed="${c === activeCat}">${c ? esc(c) : 'Semua'}</button>`
     ).join('');
@@ -302,12 +308,15 @@ async function viewAdmin() {
     `<option value="${esc(c)}" ${c === p.category ? 'selected' : ''}>${esc(c)}</option>`
   ).join('');
 
-  const catChipsHtml = categories.length ? categories.map(c => `
-    <span class="chip" style="display:inline-flex;gap:8px;align-items:center">
-      ${esc(c)}
-      <button type="button" class="btn sm danger" data-del-cat="${esc(c)}" aria-label="Hapus kategori ${esc(c)}">×</button>
-    </span>
-  `).join('') : '<span class="hint">Belum ada kategori. Silakan tambahkan.</span>';
+  const catChipsHtml = categories.length ? categories.map(c => {
+    const count = products.filter(x => x.category === c).length;
+    return `
+      <span class="chip" style="display:inline-flex;gap:8px;align-items:center">
+        <span>${esc(c)} <small style="opacity:0.7">(${count})</small></span>
+        <button type="button" class="btn sm danger" data-del-cat="${esc(c)}" aria-label="Hapus kategori ${esc(c)}" style="padding:2px 8px;font-size:0.8rem;line-height:1">×</button>
+      </span>
+    `;
+  }).join('') : '<span class="hint">Belum ada kategori. Silakan tambahkan.</span>';
 
   $('#app').innerHTML = `
     <!-- Kelola Kategori -->
@@ -451,13 +460,23 @@ async function viewAdmin() {
     const btn = e.target.closest('[data-del-cat]');
     if (!btn) return;
     const catName = btn.dataset.delCat;
-    if (confirm(`Hapus kategori "${catName}"?`)) {
+    const count = products.filter(x => x.category === catName).length;
+
+    let confirmMsg = `Hapus kategori "${catName}"?`;
+    if (count > 0) {
+      confirmMsg = `Kategori "${catName}" saat ini digunakan oleh ${count} produk.\nTetap ingin menghapus kategori ini?`;
+    }
+
+    if (confirm(confirmMsg)) {
+      btn.disabled = true;
       try {
         await apiDeleteCategory(catName);
-        toast('Kategori dihapus');
+        toast(`Kategori "${catName}" berhasil dihapus`);
         viewAdmin();
       } catch (err) {
-        toast('Gagal menghapus kategori');
+        console.error(err);
+        toast(err.message || 'Gagal menghapus kategori');
+        btn.disabled = false;
       }
     }
   };
