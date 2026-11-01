@@ -162,6 +162,106 @@ nav {
   transform: none !important;
 }
 
+/* Dropdown Navigasi "Kelola Produk" */
+.nav-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-dropdown .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.nav-dropdown .caret {
+  font-size: 0.72rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.nav-dropdown.open .caret {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown .dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  min-width: 175px;
+  box-shadow: 0 8px 24px rgba(232, 49, 127, 0.18);
+  padding: 6px;
+  z-index: 1000;
+  backdrop-filter: blur(8px);
+}
+
+.nav-dropdown.open .dropdown-menu,
+.nav-dropdown:hover .dropdown-menu {
+  display: block;
+}
+
+.nav-dropdown .dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.nav-dropdown .dropdown-item:hover {
+  background: var(--soft);
+  color: var(--accent);
+  transform: translateX(2px);
+}
+
+.nav-dropdown .dropdown-item.active {
+  background: linear-gradient(90deg, rgba(255, 92, 157, 0.15), rgba(232, 49, 127, 0.1));
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+/* Tombol Link Web di Bawah Foto Produk (Ucapan Digital) */
+.card-link-box {
+  margin: 6px 0 3px;
+  width: 100%;
+}
+
+.btn-web-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: #fff0f6;
+  color: #db2777;
+  border: 1.5px solid #fbcfe8;
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.18s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.btn-web-link:hover {
+  background: linear-gradient(90deg, #ec4899, #db2777);
+  color: #fff;
+  border-color: #db2777;
+  box-shadow: 0 3px 10px rgba(219, 39, 119, 0.3);
+  transform: translateY(-1px);
+}
+
 /* Hero Section */
 .hero {
   padding: 36px 0 16px;
@@ -397,7 +497,21 @@ nav {
   color: var(--ink);
 }
 
-/* Tombol Order pada Kartu */
+/* Tombol Order & Penilaian pada Kartu */
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: auto;
+}
+
+.card-actions .btn-order {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
 .btn-order {
   margin-top: auto;
   width: 100%;
@@ -424,6 +538,52 @@ nav {
 
 .btn-order:active {
   transform: translateY(0);
+}
+
+/* Tombol Aksi Ikon pada Kartu: 📋 dan 🌟 */
+.btn-action-icon,
+.btn-rate-quick,
+.btn-view-reviews {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 99px;
+  padding: 6px 9px;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(255, 111, 168, 0.12);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-view-reviews:hover {
+  transform: scale(1.08);
+  background: #fdf2f8;
+  border-color: #ec4899;
+  box-shadow: 0 3px 10px rgba(236, 72, 153, 0.25);
+}
+
+.btn-rate-quick:hover {
+  transform: scale(1.08);
+  background: #fff7ed;
+  border-color: #f59e0b;
+  box-shadow: 0 3px 10px rgba(245, 158, 11, 0.3);
+}
+
+.btn-action-icon:active,
+.btn-rate-quick:active,
+.btn-view-reviews:active {
+  transform: scale(0.94);
+}
+
+.btn-modal-icon,
+.btn-rate-modal {
+  padding: 0 14px;
+  font-size: 1.25rem;
+  border-radius: 12px;
 }
 
 .empty {
@@ -1050,16 +1210,44 @@ html {
     line-height: 1.2;
   }
 
-  .btn-order {
-    padding: 4px 6px;
-    font-size: 0.7rem;
-    border-radius: 6px;
-    gap: 3px;
+  .card-actions {
+    gap: 2px;
   }
 
-  .btn-order svg {
-    width: 12px;
-    height: 12px;
+  .card-actions .btn-order {
+    padding: 4px 4px;
+    font-size: 0.68rem;
+    border-radius: 6px;
+    gap: 2px;
+  }
+
+  .card-actions .btn-order svg {
+    width: 10px;
+    height: 10px;
+  }
+
+  .card-actions .btn-action-icon,
+  .card-actions .btn-view-reviews,
+  .card-actions .btn-rate-quick {
+    padding: 3px 4px;
+    font-size: 0.68rem;
+    border-radius: 6px;
+  }
+
+  .card-link-box {
+    margin: 3px 0 2px;
+  }
+
+  .btn-web-link {
+    font-size: 0.65rem;
+    padding: 3px 4px;
+    gap: 3px;
+    border-radius: 6px;
+  }
+
+  .btn-web-link svg {
+    width: 10px;
+    height: 10px;
   }
 
   .row {
@@ -1147,3 +1335,902 @@ html {
     padding: 1px 4px;
   }
 }
+
+/* ==============================================================
+   HALAMAN TESTIMONI & ULASAN (SHOPEE STYLE)
+   ============================================================== */
+.hero-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--soft);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  padding: 6px 16px;
+  border-radius: 99px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-decoration: none;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(255, 111, 168, 0.12);
+}
+
+.hero-rating-badge:hover {
+  border-color: var(--accent);
+  background: #ffd6e7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 111, 168, 0.2);
+}
+
+.hero-rating-badge .stars {
+  color: #ffad1f;
+  letter-spacing: 1px;
+}
+
+.hero-rating-badge .sep {
+  opacity: 0.4;
+}
+
+.testi-page {
+  padding: 24px 0 60px;
+}
+
+.testi-nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.btn-write-review {
+  gap: 8px;
+  font-weight: 600;
+  padding: 10px 20px;
+}
+
+/* Ringkasan Nilai Shopee-Style */
+.shopee-summary-card {
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 28px;
+  align-items: center;
+  margin-bottom: 24px;
+  box-shadow: 0 6px 20px rgba(255, 111, 168, 0.14);
+}
+
+.shopee-score-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-right: 1.5px solid var(--soft);
+  padding-right: 20px;
+}
+
+.shopee-big-score {
+  font-size: 3.4rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.shopee-score-max {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.shopee-stars {
+  font-size: 1.5rem;
+  margin: 6px 0 4px;
+  letter-spacing: 2px;
+}
+
+.star-gold {
+  color: #ffad1f;
+}
+
+.star-gray {
+  color: #e6d3dc;
+}
+
+.shopee-total-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.shopee-badge-local {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  background: #fff0f6;
+  border: 1px dashed #ffb0cf;
+  color: #b0215f;
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+.shopee-bars-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.shopee-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.86rem;
+  color: var(--ink);
+}
+
+.shopee-bar-label {
+  width: 78px;
+  flex: none;
+  font-weight: 500;
+}
+
+.shopee-bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--soft);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.shopee-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff84b5, #e8317f);
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.shopee-bar-count {
+  width: 44px;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+/* Tabs Filter Shopee-Style */
+.shopee-filter-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.shopee-tab {
+  padding: 8px 18px;
+  border-radius: 99px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shopee-tab:hover {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+
+.shopee-tab.active {
+  background: linear-gradient(90deg, #ff5c9d, #e8317f);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(232, 49, 127, 0.25);
+}
+
+/* Daftar Kartu Ulasan */
+.shopee-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shopee-review-item {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 3px 12px rgba(255, 111, 168, 0.08);
+  transition: all 0.2s ease;
+}
+
+.shopee-review-item:hover {
+  box-shadow: 0 6px 18px rgba(255, 111, 168, 0.16);
+}
+
+.shopee-item-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.shopee-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+  flex: none;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(232, 49, 127, 0.2);
+}
+
+.shopee-user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.shopee-user-name {
+  font-weight: 700;
+  font-size: 0.96rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.shopee-verified-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid #bbf7d0;
+}
+
+.shopee-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.shopee-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.shopee-stars-item {
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+}
+
+.shopee-product-tag {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #972758;
+  background: #ffe8f2;
+  border: 1px solid #ffd0e4;
+  padding: 2px 10px;
+  border-radius: 99px;
+}
+
+.shopee-comment-text {
+  font-size: 0.94rem;
+  color: #3d1529;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin-bottom: 12px;
+}
+
+.shopee-photos-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.shopee-photo-thumb {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1.5px solid var(--line);
+  cursor: pointer;
+  background: var(--soft);
+  flex: none;
+}
+
+.shopee-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.shopee-photo-thumb:hover img {
+  transform: scale(1.08);
+}
+
+.zoom-indicator {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 0.65rem;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shopee-item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px dashed #ffd6e7;
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+.btn-like-review {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 4px 14px;
+  font-size: 0.82rem;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.btn-like-review:hover, .btn-like-review.liked {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--soft);
+  font-weight: 600;
+}
+
+.btn-del-review {
+  background: none;
+  border: 1px solid #fca5a5;
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-del-review:hover {
+  background: #fee2e2;
+}
+
+/* Modal Formulir Ulasan & Selector Bintang */
+.modal-write-review {
+  max-width: 520px;
+}
+
+.star-rating-selector {
+  background: #fff5f9;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.star-rating-icons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: #e2d5dc;
+  cursor: pointer;
+  transition: transform 0.15s, color 0.15s;
+  padding: 0 4px;
+}
+
+.star-btn.on, .star-btn.hover {
+  color: #ffad1f;
+}
+
+.star-btn:hover {
+  transform: scale(1.22);
+}
+
+.star-rating-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 6px;
+  min-height: 24px;
+}
+
+/* Upload Foto Ulasan */
+.photo-uploader-box {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.btn-pick-photos {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--soft);
+  border: 1.5px dashed var(--accent);
+  border-radius: 12px;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-pick-photos:hover {
+  background: #ffd6e7;
+}
+
+.photo-preview-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.preview-item {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--line);
+}
+
+.preview-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.btn-remove-photo {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shopee-local-note {
+  background: #fff8e7;
+  border: 1.5px solid #fde047;
+  color: #854d0e;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  margin: 14px 0 6px;
+}
+
+/* Lightbox Pop-up Foto */
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(5px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.lightbox-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lightbox-content {
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-content img {
+  max-width: 100%;
+  max-height: 88vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 2010;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+/* Responsif Mobile untuk Halaman Testimoni */
+@media (max-width: 640px) {
+  .hero-rating-badge {
+    font-size: 0.78rem;
+    padding: 5px 12px;
+    gap: 6px;
+  }
+
+  .shopee-summary-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .shopee-score-box {
+    border-right: none;
+    border-bottom: 1.5px solid var(--soft);
+    padding-right: 0;
+    padding-bottom: 14px;
+  }
+
+  .shopee-big-score {
+    font-size: 2.6rem;
+  }
+
+  .shopee-filter-tabs {
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .shopee-tab {
+    padding: 6px 12px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    flex: none;
+  }
+
+  .shopee-review-item {
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .shopee-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+
+  .shopee-user-name {
+    font-size: 0.88rem;
+  }
+
+  .shopee-comment-text {
+    font-size: 0.86rem;
+  }
+
+  .shopee-photo-thumb {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+  }
+
+  .star-btn {
+    font-size: 2rem;
+  }
+
+  .btn-write-review {
+    width: 100%;
+    padding: 8px 16px;
+    font-size: 0.88rem;
+  }
+}
+
+/* ==============================================================
+   ULASAN & RATING PER-PRODUK (DIPISAH MASING-MASING PRODUK)
+   ============================================================== */
+/* Rating Bintang pada Kartu Katalog */
+.card-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--ink);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  width: fit-content;
+}
+
+.card-rating:hover {
+  opacity: 0.8;
+}
+
+.card-rating .star-gold {
+  color: #ffad1f;
+  font-size: 0.95rem;
+}
+
+.card-rating-count {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* Tab Filter Produk pada Halaman Testimoni */
+.testi-product-tabs-wrap {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 3px 12px rgba(255, 111, 168, 0.08);
+}
+
+.testi-p-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.testi-p-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.btn-clear-prod {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 3px 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-clear-prod:hover {
+  background: #ffd6e7;
+}
+
+.testi-product-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.testi-p-pill {
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.testi-p-pill:hover {
+  border-color: var(--accent);
+  background: var(--soft);
+}
+
+.testi-p-pill.active {
+  background: linear-gradient(90deg, #ff5c9d, #e8317f);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(232, 49, 127, 0.25);
+}
+
+.btn-filter-this-tag {
+  cursor: pointer;
+  transition: transform 0.15s, opacity 0.2s;
+}
+
+.btn-filter-this-tag:hover {
+  transform: translateY(-1px);
+  opacity: 0.85;
+}
+
+/* Seksi Ulasan Khusus di Modal Detail Produk */
+.product-reviews-box {
+  margin-top: 22px;
+  border-top: 1.5px dashed var(--line);
+  padding-top: 18px;
+}
+
+.p-rev-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.p-rev-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.p-rev-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.p-rev-user-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.p-rev-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex: none;
+}
+
+.p-rev-name {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: var(--ink);
+}
+
+.p-rev-date {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.p-rev-stars {
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+}
+
+.p-rev-comment {
+  font-size: 0.84rem;
+  color: #3d1529;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.p-rev-empty {
+  text-align: center;
+  padding: 16px 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  background: var(--bg);
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+/* Mobile Styling untuk Rating Kartu */
+@media (max-width: 640px) {
+  .card-rating {
+    font-size: 0.68rem;
+    margin-bottom: 4px;
+    gap: 3px;
+  }
+
+  .card-rating .star-gold {
+    font-size: 0.78rem;
+  }
+
+  .card-rating-count {
+    font-size: 0.64rem;
+  }
+
+  .testi-product-pills {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .testi-p-pill {
+    padding: 5px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .card-rating {
+    font-size: 0.62rem;
+  }
+
+  .card-rating .star-gold {
+    font-size: 0.72rem;
+  }
+
+  .card-rating-count {
+    font-size: 0.58rem;
+  }
+}
+
+
