@@ -159,7 +159,8 @@ async function route() {
 let activeCat = '';
 async function viewGuest() {
   const app = $('#app');
-  const allReviews = await apiGetReviews();
+  let allReviews = [];
+  try { allReviews = await apiGetReviews(); } catch(e) { console.warn('reviews table not ready:', e.message); }
   const revCount = allReviews.length;
   const revAvg = revCount > 0 ? (allReviews.reduce((a, b) => a + (Number(b.rating) || 5), 0) / revCount).toFixed(1) : null;
 
@@ -224,7 +225,7 @@ async function viewGuest() {
     ).join('');
   };
 
-  const drawGrid = () => {
+  const drawGrid = async () => {
     const q = ($('#q')?.value || '').trim().toLowerCase();
     const list = activeProducts.filter(p => {
       const matchCat = !activeCat || p.category === activeCat;
@@ -845,7 +846,7 @@ async function viewTestimoni() {
   };
 
   // Delegated clicks di dalam list review: Like, Delete (Owner), Foto Zoom, Filter Tag
-  $('#reviewsList').onclick = e => {
+  $('#reviewsList').onclick = async e => {
     // Klik tag produk untuk langsung memfilter ke ulasan produk tersebut
     const tagBtn = e.target.closest('.btn-filter-this-tag');
     if (tagBtn) {
