@@ -452,3 +452,22 @@ async function getProductRatingStats(productName, productId = null) {
   const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
   return { count, avg: (sum / count).toFixed(1), reviews };
 }
+
+
+// Balas ulasan pembeli (khusus admin/owner yang login)
+async function apiReplyReview(id, replyText) {
+  if (!supabaseClient) throw new Error('Supabase belum terhubung');
+  const cleanText = (replyText || '').trim();
+  const payload = {
+    admin_reply: cleanText || null,
+    admin_reply_at: cleanText ? new Date().toISOString() : null
+  };
+  const { data, error } = await supabaseClient
+    .from('reviews')
+    .update(payload)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}

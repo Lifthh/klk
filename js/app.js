@@ -802,11 +802,24 @@ async function viewTestimoni() {
             </div>
           ` : ''}
 
+          ${r.admin_reply ? `
+            <div class="seller-reply-box">
+              <div class="seller-reply-header">
+                <span class="seller-reply-badge">💬 Respon Penjual</span>
+                ${r.admin_reply_at ? `<span class="seller-reply-date">${esc(new Date(r.admin_reply_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}
+              </div>
+              <div class="seller-reply-body">${esc(r.admin_reply)}</div>
+            </div>
+          ` : ''}
+
           <div class="shopee-item-footer">
             <button type="button" class="btn-like-review ${hasLiked ? 'liked' : ''}" data-id="${esc(r.id)}">
               👍 Membantu (${r.likes || 0})
             </button>
             ${session ? `
+              <button type="button" class="btn-reply-review" data-id="${esc(r.id)}" data-reply="${esc(r.admin_reply || '')}" title="${r.admin_reply ? 'Ubah balasan penjual' : 'Balas ulasan ini'}">
+                💬 ${r.admin_reply ? 'Ubah Respon' : 'Balas Ulasan'}
+              </button>
               <button type="button" class="btn-del-review" data-id="${esc(r.id)}" title="Hapus ulasan ini">
                 🗑️ Hapus Ulasan
               </button>
@@ -866,6 +879,15 @@ async function viewTestimoni() {
       } else {
         toast('Kamu sudah menyukai ulasan ini.');
       }
+      return;
+    }
+
+    // Tombol Balas Ulasan (Owner)
+    const replyBtn = e.target.closest('.btn-reply-review');
+    if (replyBtn) {
+      const id = replyBtn.dataset.id;
+      const currentReply = replyBtn.dataset.reply || '';
+      openReplyModal(id, currentReply);
       return;
     }
 
@@ -1353,6 +1375,101 @@ function openPhotoLightbox(photoUrl) {
   $('#closeLightbox').onclick = closeLb;
   lb.onclick = e => {
     if (e.target === lb || e.target.classList.contains('lightbox-content')) closeLb();
+  };
+}
+
+
+// Modal Balas Ulasan (Khusus Admin / Owner)
+function openReplyModal(reviewId, currentReply = '') {
+  const modalContainer = $('#modalContainer');
+  if (!modalContainer) return;
+
+  modalContainer.innerHTML = `
+    <div class="modal-backdrop" id="replyModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="replyModalTitle">
+      <div class="modal-card" style="max-width: 480px;">
+        <button type="button" class="modal-close" id="closeReplyModal" aria-label="Tutup">&times;</button>
+        <div class="modal-body">
+          <h2 id="replyModalTitle" style="margin: 0 0 6px; font-size: 1.2rem; color: var(--ink);">
+            💬 Balas Ulasan Pembeli
+          </h2>
+          <p style="margin: 0 0 14px; font-size: 0.85rem; color: var(--muted);">
+            Tulis respon resmi dari penjual. Respon ini akan muncul di bawah ulasan pembeli dan bisa dilihat oleh semua pengunjung.
+          </p>
+          <form id="replyReviewForm">
+            <label for="adminReplyText" style="display:block; font-size:0.85rem; font-weight:600; margin-bottom:6px; color:var(--ink);">
+              Respon Penjual
+            </label>
+            <textarea id="adminReplyText" rows="4" style="width:100%; padding:10px 12px; border:1.5px solid var(--line); border-radius:10px; font-family:inherit; font-size:0.9rem; resize:vertical; box-sizing:border-box; outline:none; transition:border-color 0.2s;" placeholder="Contoh: Terima kasih banyak kak sudah belanja di K.L.K Memories! Ditunggu pesanan berikutnya yaa 🥰">${esc(currentReply)}</textarea>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+              ${currentReply ? `
+                <button type="button" class="btn sm danger" id="deleteReplyBtn" title="Hapus respon ini">
+                  Hapus Respon
+                </button>
+              ` : '<div></div>'}
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn sm" id="cancelReplyBtn">Batal</button>
+                <button type="submit" class="btn sm primary" id="saveReplyBtn">
+                  Simpan Respon
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const backdrop = $('#replyModalBackdrop');
+  requestAnimationFrame(() => backdrop.classList.add('show'));
+
+  const closeModal = () => {
+    backdrop.classList.remove('show');
+    setTimeout(() => { modalContainer.innerHTML = ''; }, 250);
+  };
+
+  $('#closeReplyModal').onclick = closeModal;
+  $('#cancelReplyBtn').onclick = closeModal;
+  backdrop.onclick = e => { if (e.target === backdrop) closeModal(); };
+
+  // Tombol Hapus Respon
+  const delBtn = $('#deleteReplyBtn');
+  if (delBtn) {
+    delBtn.onclick = async () => {
+      if (!confirm('Hapus respon penjual untuk ulasan ini?')) return;
+      delBtn.disabled = true;
+      delBtn.textContent = 'Menghapus...';
+      try {
+        await apiReplyReview(reviewId, '');
+        toast('Respon penjual dihapus.');
+        closeModal();
+        viewTestimoni();
+      } catch (err) {
+        toast(err.message || 'Gagal menghapus respon');
+        delBtn.disabled = false;
+        delBtn.textContent = 'Hapus Respon';
+      }
+    };
+  }
+
+  // Submit Simpan Respon
+  $('#replyReviewForm').onsubmit = async e => {
+    e.preventDefault();
+    const saveBtn = $('#saveReplyBtn');
+    const text = ($('#adminReplyText')?.value || '').trim();
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Menyimpan...';
+
+    try {
+      await apiReplyReview(reviewId, text);
+      toast(text ? 'Respon penjual berhasil disimpan! 💬' : 'Respon penjual dihapus.');
+      closeModal();
+      viewTestimoni();
+    } catch (err) {
+      toast(err.message || 'Gagal menyimpan respon');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Simpan Respon';
+    }
   };
 }
 
