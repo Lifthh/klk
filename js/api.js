@@ -296,19 +296,17 @@ async function apiUploadImage(file) {
   return publicUrl;
 }
 
-// ==============================================================
-// TESTIMONI & ULASAN PRODUK (PENYIMPANAN LOKAL / LOCALSTORAGE)
-// ==============================================================
-const TESTIMONIALS_KEY = 'klk_testimonials_v3';
 
-// Bersihkan data dummy lama dari browser jika ada
+// ==============================================================
+// TESTIMONI & ULASAN PRODUK (SUPABASE DATABASE)
+// ==============================================================
+
+// Bersihkan cache localStorage lama dari browser
 try {
   localStorage.removeItem('klk_testimonials_v1');
   localStorage.removeItem('klk_testimonials_v2');
+  localStorage.removeItem('klk_testimonials_v3');
 } catch (_) {}
-
-// Data Ulasan Awal Dikosongkan (Sesuai Permintaan Pemilik Toko)
-const DEFAULT_TESTIMONIALS = [];
 
 // Helper Sensor Nama Pembeli (Contoh: "Lesmana" -> "L*****A")
 function maskName(str) {
@@ -324,7 +322,7 @@ function maskName(str) {
   }).join(' ');
 }
 
-// Helper kompresi foto ulasan ke format Base64 ringan (30-60 KB per foto)
+// Helper kompresi foto ulasan ke Blob sebelum upload ke Supabase Storage
 function compressImageToBase64(file, maxDimension = 680, quality = 0.72) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -333,26 +331,16 @@ function compressImageToBase64(file, maxDimension = 680, quality = 0.72) {
       const img = new Image();
       img.onerror = reject;
       img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+        let width = img.width, height = img.height;
         if (width > height) {
-          if (width > maxDimension) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          }
+          if (width > maxDimension) { height = Math.round(height * maxDimension / width); width = maxDimension; }
         } else {
-          if (height > maxDimension) {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
+          if (height > maxDimension) { width = Math.round(width * maxDimension / height); height = maxDimension; }
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(dataUrl);
+        const c = document.createElement('canvas');
+        c.width = width; c.height = height;
+        c.getContext('2d').drawImage(img, 0, 0, width, height);
+        c.toBlob(blob => blob ? resolve(blob) : reject(new Error('Gagal kompres foto')), 'image/jpeg', quality);
       };
       img.src = reader.result;
     };
@@ -360,93 +348,107 @@ function compressImageToBase64(file, maxDimension = 680, quality = 0.72) {
   });
 }
 
-// Ambil semua testimoni dari LocalStorage
-function apiGetReviews() {
-  try {
-    const raw = localStorage.getItem(TESTIMONIALS_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch (err) {
-    console.warn('Gagal membaca ulasan dari localStorage:', err);
+// Upload foto ulasan ke Supabase Storage, return public URL
+async function apiUploadReviewPhoto(file) {
+  const blob = await compressImageToBase64(file);
+
+  if (!supabaseClient) {
+    // Fallback DataURL jika Supabase belum terhubung
+    return new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(blob); });
   }
-  // Pasang data bawaan jika masih kosong
-  try {
-    localStorage.setItem(TESTIMONIALS_KEY, JSON.stringify(DEFAULT_TESTIMONIALS));
-  } catch (_) {}
-  return DEFAULT_TESTIMONIALS;
+
+  const filePath = `reviews/rev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.jpg`;
+  const { error: upErr } = await supabaseClient.storage
+    .from('product-images')
+    .upload(filePath, blob, { contentType: 'image/jpeg', upsert: false });
+  if (upErr) throw upErr;
+
+  const { data: { publicUrl } } = supabaseClient.storage
+    .from('product-images').getPublicUrl(filePath);
+  return publicUrl;
 }
 
-// Simpan ulasan baru pembeli ke LocalStorage
-function apiSaveReview(review) {
-  const list = apiGetReviews();
-  const newReview = {
-    id: 'testi_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-    date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+// Ambil SEMUA ulasan dari Supabase
+async function apiGetReviews() {
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
+    .from('reviews').select('*').order('created_at', { ascending: false });
+  if (error) { console.warn('Gagal memuat ulasan:', error); return []; }
+  return (data || []).map(r => ({
+    ...r,
+    productName: r.product_name || '',
+    productId: r.product_id || null,
+    photos: Array.isArray(r.photos) ? r.photos : []
+  }));
+}
+
+// Simpan ulasan baru pembeli ke Supabase
+async function apiSaveReview(review) {
+  const payload = {
+    name: review.name || 'Pembeli',
+    product_name: review.productName || review.product_name || '',
+    product_id: review.productId || review.product_id || null,
+    rating: Number(review.rating) || 5,
+    comment: review.comment || '',
+    photos: review.photos || [],
     likes: 0,
-    ...review
+    date: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   };
-  const updated = [newReview, ...list];
-  try {
-    localStorage.setItem(TESTIMONIALS_KEY, JSON.stringify(updated));
-  } catch (err) {
-    console.error('LocalStorage penuh saat menyimpan foto ulasan:', err);
-    throw new Error('Memori browser penuh. Coba kurangi foto atau kompres ukuran foto.');
-  }
-  return newReview;
+
+  if (!supabaseClient) throw new Error('Supabase belum terhubung, ulasan tidak dapat disimpan.');
+
+  const { data, error } = await supabaseClient
+    .from('reviews').insert([payload]).select().single();
+  if (error) throw error;
+  return { ...data, productName: data.product_name, productId: data.product_id, photos: data.photos || [] };
 }
 
-// Tambah like "Membantu" pada ulasan
-function apiLikeReview(id) {
-  const list = apiGetReviews();
-  const likedKey = 'klk_liked_reviews';
+// Tambah like "Membantu" pada ulasan (anti-double-like via localStorage)
+async function apiLikeReview(id) {
+  const likedKey = 'klk_liked_reviews_v2';
   let likedList = [];
-  try {
-    likedList = JSON.parse(localStorage.getItem(likedKey) || '[]');
-  } catch (_) {}
+  try { likedList = JSON.parse(localStorage.getItem(likedKey) || '[]'); } catch (_) {}
+  if (likedList.includes(id)) return false;
 
-  if (likedList.includes(id)) return false; // Sudah like sebelumnya
+  if (supabaseClient) {
+    const { data: cur } = await supabaseClient.from('reviews').select('likes').eq('id', id).single();
+    await supabaseClient.from('reviews').update({ likes: (cur?.likes || 0) + 1 }).eq('id', id);
+  }
 
-  const updated = list.map(item => item.id === id ? { ...item, likes: (item.likes || 0) + 1 } : item);
-  try {
-    localStorage.setItem(TESTIMONIALS_KEY, JSON.stringify(updated));
-    likedList.push(id);
-    localStorage.setItem(likedKey, JSON.stringify(likedList));
-  } catch (_) {}
+  try { likedList.push(id); localStorage.setItem(likedKey, JSON.stringify(likedList)); } catch (_) {}
   return true;
 }
 
-// Hapus ulasan (khusus owner saat login)
-function apiDeleteReview(id) {
-  const list = apiGetReviews();
-  const updated = list.filter(item => item.id !== id);
-  try {
-    localStorage.setItem(TESTIMONIALS_KEY, JSON.stringify(updated));
-  } catch (_) {}
-  return updated;
+// Hapus ulasan (khusus owner yang login)
+async function apiDeleteReview(id) {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.from('reviews').delete().eq('id', id);
+  if (error) throw error;
 }
 
-// Ambil ulasan KHUSUS satu produk (berdasarkan nama produk atau ID produk)
-function apiGetReviewsByProduct(productName, productId = null) {
-  const all = apiGetReviews();
+// Ambil ulasan khusus satu produk dari Supabase
+async function apiGetReviewsByProduct(productName, productId = null) {
+  if (!supabaseClient) return [];
   const norm = (productName || '').toLowerCase().trim();
-  return all.filter(r => {
-    if (productId && r.productId && String(r.productId) === String(productId)) return true;
-    if (norm && r.productName && r.productName.toLowerCase().trim() === norm) return true;
-    return false;
-  });
-}
-
-// Hitung statistik rating khusus satu produk
-function getProductRatingStats(productName, productId = null) {
-  const reviews = apiGetReviewsByProduct(productName, productId);
-  const count = reviews.length;
-  if (count === 0) {
-    return { count: 0, avg: '5.0', reviews: [] };
+  let query = supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
+  if (productId) {
+    query = query.or(`product_id.eq.${productId},product_name.ilike.${norm}`);
+  } else if (norm) {
+    query = query.ilike('product_name', norm);
   }
-  const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
-  const avg = (sum / count).toFixed(1);
-  return { count, avg, reviews };
+  const { data, error } = await query;
+  if (error) { console.warn(error); return []; }
+  return (data || []).map(r => ({
+    ...r, productName: r.product_name, productId: r.product_id,
+    photos: Array.isArray(r.photos) ? r.photos : []
+  }));
 }
 
+// Hitung statistik rating untuk satu produk
+async function getProductRatingStats(productName, productId = null) {
+  const reviews = await apiGetReviewsByProduct(productName, productId);
+  const count = reviews.length;
+  if (count === 0) return { count: 0, avg: '5.0', reviews: [] };
+  const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 5), 0);
+  return { count, avg: (sum / count).toFixed(1), reviews };
+}

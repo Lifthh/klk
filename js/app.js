@@ -159,7 +159,7 @@ async function route() {
 let activeCat = '';
 async function viewGuest() {
   const app = $('#app');
-  const allReviews = apiGetReviews();
+  const allReviews = await apiGetReviews();
   const revCount = allReviews.length;
   const revAvg = revCount > 0 ? (allReviews.reduce((a, b) => a + (Number(b.rating) || 5), 0) / revCount).toFixed(1) : null;
 
@@ -238,11 +238,17 @@ async function viewGuest() {
       return;
     }
 
+    // Pre-load semua rating stats sebelum render
+    const statsMap = {};
+    await Promise.all(list.map(async p => {
+      statsMap[p.id] = await getProductRatingStats(p.name, p.id);
+    }));
+
     grid.innerHTML = list.map(p => {
       const imgs = [p.image, p.image2, p.image3].filter(Boolean);
       const multi = imgs.length > 1;
       const descText = (p.desc || '').trim();
-      const pStats = getProductRatingStats(p.name, p.id);
+      const pStats = statsMap[p.id] || { count: 0, avg: '5.0' };
       return `
         <article class="card" data-id="${p.id}">
           <div class="thumb ${multi ? 'multi' : ''}" ${multi ? 'tabindex="0" role="button" aria-label="Ganti foto ' + esc(p.name) + '"' : ''}>
@@ -279,7 +285,7 @@ async function viewGuest() {
   };
 
   // Event Listeners Filter
-  $('#q').oninput = drawGrid;
+  $('#q').oninput = () => drawGrid();
   chipsContainer.onclick = e => {
     const b = e.target.closest('.chip');
     if (!b) return;
@@ -401,14 +407,14 @@ async function viewGuest() {
 
 // ----------------- MODAL POPUP (DETAIL & ORDER) -----------------
 // Modal Detail Produk Lengkap (Baca Selengkapnya)
-function openDetailModal(p, scrollToReviews = false) {
+async function openDetailModal(p, scrollToReviews = false) {
   const modalContainer = $('#modalContainer');
   if (!modalContainer) return;
 
   const imgs = [p.image, p.image2, p.image3].filter(Boolean);
   const multi = imgs.length > 1;
 
-  const pStats = getProductRatingStats(p.name, p.id);
+  const pStats = await getProductRatingStats(p.name, p.id);
   const pReviews = pStats.reviews;
 
   modalContainer.innerHTML = `
@@ -644,11 +650,11 @@ async function viewTestimoni() {
     activeProductTestiFilter = decodeURIComponent(paramProd);
   }
 
-  const allReviews = apiGetReviews();
+  const allReviews = await apiGetReviews();
   
   // Ambil ulasan KHUSUS produk yang dipilih, atau semua jika tidak difilter
   const reviews = activeProductTestiFilter 
-    ? apiGetReviewsByProduct(activeProductTestiFilter) 
+    ? await apiGetReviewsByProduct(activeProductTestiFilter) 
     : allReviews;
 
   const total = reviews.length;
@@ -852,7 +858,7 @@ async function viewTestimoni() {
     const likeBtn = e.target.closest('.btn-like-review');
     if (likeBtn) {
       const id = likeBtn.dataset.id;
-      const ok = apiLikeReview(id);
+      const ok = await apiLikeReview(id);
       if (ok) {
         toast('Terima kasih atas tanggapanmu! 👍');
         viewTestimoni();
@@ -866,8 +872,8 @@ async function viewTestimoni() {
     const delBtn = e.target.closest('.btn-del-review');
     if (delBtn) {
       const id = delBtn.dataset.id;
-      if (confirm('Yakin ingin menghapus ulasan ini dari penyimpanan lokal?')) {
-        apiDeleteReview(id);
+      if (confirm('Yakin ingin menghapus ulasan ini?')) {
+        await apiDeleteReview(id);
         toast('Ulasan berhasil dihapus');
         viewTestimoni();
       }
@@ -930,7 +936,7 @@ async function viewUcapanDigital() {
     ).join('');
   };
 
-  const drawUcapanGrid = () => {
+  const drawUcapanGrid = async () => {
     const q = ($('#qUcapan')?.value || '').trim().toLowerCase();
     const list = ucapanProducts.filter(p => {
       const matchCat = !activeUcapanCat || p.category === activeUcapanCat;
@@ -950,11 +956,17 @@ async function viewUcapanDigital() {
       return;
     }
 
+    // Pre-load semua rating stats
+    const statsMapU = {};
+    await Promise.all(list.map(async p => {
+      statsMapU[p.id] = await getProductRatingStats(p.name, p.id);
+    }));
+
     grid.innerHTML = list.map(p => {
       const imgs = [p.image, p.image2, p.image3].filter(Boolean);
       const multi = imgs.length > 1;
       const descText = (p.desc || '').trim();
-      const pStats = getProductRatingStats(p.name, p.id);
+      const pStats = statsMapU[p.id] || { count: 0, avg: '5.0' };
       return `
         <article class="card" data-id="${p.id}">
           <div class="thumb ${multi ? 'multi' : ''}" ${multi ? 'tabindex="0" role="button" aria-label="Ganti foto ' + esc(p.name) + '"' : ''}>
@@ -1255,8 +1267,8 @@ function openWriteReviewModal(activeProducts, preselectedProductName = '') {
       if (selectedPhotos.length >= 3) break;
       if (!f.type.startsWith('image/')) continue;
       try {
-        const compressed = await compressImageToBase64(f);
-        selectedPhotos.push(compressed);
+        const photoUrl = await apiUploadReviewPhoto(f);
+        selectedPhotos.push(photoUrl);
       } catch (err) {
         console.error('Gagal memproses foto:', err);
       }
@@ -1274,7 +1286,7 @@ function openWriteReviewModal(activeProducts, preselectedProductName = '') {
   };
 
   // Submit Form Ulasan
-  $('#writeReviewForm').onsubmit = e => {
+  $('#writeReviewForm').onsubmit = async e => {
     e.preventDefault();
     const name = ($('#revName').value || '').trim();
     const productName = $('#revProduct').value;
@@ -1287,7 +1299,7 @@ function openWriteReviewModal(activeProducts, preselectedProductName = '') {
 
     try {
       const matched = activeProducts.find(x => x.name === productName);
-      apiSaveReview({
+      await apiSaveReview({
         productId: matched ? matched.id : '',
         name,
         productName,
