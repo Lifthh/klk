@@ -920,17 +920,21 @@ let activeUcapanCat = '';
 async function viewUcapanDigital() {
   const app = $('#app');
   let products = [];
+  let ucapanCats = [];
   try {
-    products = await apiGetProducts();
+    [products, ucapanCats] = await Promise.all([
+      apiGetProducts(),
+      apiGetCategories('ucapan')
+    ]);
   } catch (err) {
     products = [];
+    ucapanCats = [];
   }
 
   // Ambil hanya produk aktif tipe Ucapan Digital
   let ucapanProducts = products.filter(p => p.active && isUcapanProduct(p));
 
-  // Kategori default
-  const ucapanCats = ['Galery', 'Ucapan Ulangtahun'];
+  // Kategori gabungan dari master kategori ucapan & kategori produk aktif
   const cats = [...new Set([...ucapanCats, ...ucapanProducts.map(p => p.category).filter(Boolean)])];
 
   if (activeUcapanCat && !cats.includes(activeUcapanCat)) activeUcapanCat = '';
@@ -1473,6 +1477,81 @@ function openReplyModal(reviewId, currentReply = '') {
   };
 }
 
+// Modal Ubah Nama Kategori (Admin)
+function openEditCategoryModal(oldName, type, onSuccess) {
+  const modalContainer = $('#modalContainer');
+  if (!modalContainer) return;
+
+  const isUcapan = type === 'ucapan';
+  const typeLabel = isUcapan ? 'Ucapan Digital' : 'Keychain';
+
+  modalContainer.innerHTML = `
+    <div class="modal-backdrop" id="editCatBackdrop" role="dialog" aria-modal="true" aria-labelledby="editCatTitle">
+      <div class="modal-card" style="max-width: 440px;">
+        <button type="button" class="modal-close" id="closeEditCatModal" aria-label="Tutup">&times;</button>
+        <div class="modal-body">
+          <h2 id="editCatTitle" style="margin: 0 0 6px; font-size: 1.2rem; color: var(--ink);">
+            ✏️ Ubah Nama Kategori
+          </h2>
+          <p style="margin: 0 0 14px; font-size: 0.85rem; color: var(--muted); line-height: 1.45;">
+            Kategori ${typeLabel}: <strong>"${esc(oldName)}"</strong>.<br>
+            Produk yang menggunakan kategori ini akan otomatis diperbarui ke nama baru.
+          </p>
+          <form id="editCatForm" autocomplete="off">
+            <label for="editCatInput" style="display:block; margin-bottom: 6px; font-weight:600; font-size:0.88rem;">Nama Kategori Baru</label>
+            <input type="text" id="editCatInput" required value="${esc(oldName)}" placeholder="Masukkan nama kategori baru" style="width:100%; margin-bottom:16px;">
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+              <button type="button" class="btn" id="cancelEditCat">Batal</button>
+              <button type="submit" class="btn primary" id="saveEditCat">Simpan Perubahan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const backdrop = $('#editCatBackdrop');
+  requestAnimationFrame(() => backdrop.classList.add('show'));
+
+  const inputEl = $('#editCatInput');
+  setTimeout(() => {
+    inputEl?.focus();
+    inputEl?.select();
+  }, 100);
+
+  const closeModal = () => {
+    backdrop.classList.remove('show');
+    setTimeout(() => { modalContainer.innerHTML = ''; }, 250);
+  };
+
+  $('#closeEditCatModal').onclick = closeModal;
+  $('#cancelEditCat').onclick = closeModal;
+  backdrop.onclick = e => { if (e.target === backdrop) closeModal(); };
+
+  $('#editCatForm').onsubmit = async e => {
+    e.preventDefault();
+    const newName = inputEl.value.trim();
+    if (!newName) return;
+    if (newName.toLowerCase() === oldName.toLowerCase()) {
+      closeModal();
+      return;
+    }
+    const saveBtn = $('#saveEditCat');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Menyimpan...';
+    try {
+      await apiUpdateCategory(oldName, newName, type);
+      toast(`Kategori "${oldName}" diubah menjadi "${newName}"`);
+      closeModal();
+      if (onSuccess) onSuccess(newName);
+    } catch (err) {
+      toast(err.message || 'Gagal mengubah kategori');
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Simpan Perubahan';
+    }
+  };
+}
+
 // ----------------- LOGIN VIEW (TERSEMBUNYI UNTUK OWNER) -----------------
 function viewLogin() {
   $('#app').innerHTML = `
@@ -1537,12 +1616,15 @@ async function viewAdmin(adminType = null) {
   try {
     [products, categories] = await Promise.all([
       apiGetProducts(),
-      apiGetCategories()
+      apiGetCategories(adminType)
     ]);
   } catch (err) {
     console.error(err);
     toast('Gagal memuat data');
   }
+
+  // Filter produk sesuai tab admin aktif
+  const filteredProducts = products.filter(x => isUcapan ? isUcapanProduct(x) : isKeychainProduct(x));
 
   const p = products.find(x => x.id === editId) || {
     name: '', category: '', price: '', desc: '', link: '', image: '', image2: '', image3: ''
@@ -1553,29 +1635,22 @@ async function viewAdmin(adminType = null) {
   img3Url = p.image3 || '';
   img1File = null; img2File = null; img3File = null;
 
-  const catOptionsHtml = isUcapan
-    ? `
-      <option value="" disabled ${p.category ? '' : 'selected'}>Pilih kategori</option>
-      <option value="Galery" ${p.category === 'Galery' ? 'selected' : ''}>Galery</option>
-      <option value="Ucapan Ulangtahun" ${p.category === 'Ucapan Ulangtahun' ? 'selected' : ''}>Ucapan Ulangtahun</option>
-    `
-    : `
-      <option value="" disabled ${p.category ? '' : 'selected'}>Pilih kategori</option>
-      ${categories.map(c => `<option value="${esc(c)}" ${c === p.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}
-    `;
+  const catOptionsHtml = `
+    <option value="" disabled ${p.category ? '' : 'selected'}>Pilih kategori</option>
+    ${categories.map(c => `<option value="${esc(c)}" ${c === p.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+    ${p.category && !categories.includes(p.category) ? `<option value="${esc(p.category)}" selected>${esc(p.category)} (Kategori saat ini)</option>` : ''}
+  `;
 
   const catChipsHtml = categories.length ? categories.map(c => {
-    const count = products.filter(x => x.category === c).length;
+    const count = filteredProducts.filter(x => x.category === c).length;
     return `
-      <span class="chip" style="display:inline-flex;gap:8px;align-items:center">
+      <span class="chip" style="display:inline-flex;gap:6px;align-items:center;padding:5px 12px;">
         <span>${esc(c)} <small style="opacity:0.7">(${count})</small></span>
-        <button type="button" class="btn sm danger" data-del-cat="${esc(c)}" aria-label="Hapus kategori ${esc(c)}" style="padding:2px 8px;font-size:0.8rem;line-height:1">×</button>
+        <button type="button" class="btn sm" data-edit-cat="${esc(c)}" title="Ubah nama kategori ${esc(c)}" aria-label="Ubah kategori ${esc(c)}" style="padding:2px 7px;font-size:0.78rem;line-height:1;margin-left:4px;border-radius:6px;border:1px solid var(--line);">✏️ Ubah</button>
+        <button type="button" class="btn sm danger" data-del-cat="${esc(c)}" title="Hapus kategori ${esc(c)}" aria-label="Hapus kategori ${esc(c)}" style="padding:2px 8px;font-size:0.78rem;line-height:1;border-radius:6px;">✕ Hapus</button>
       </span>
     `;
-  }).join('') : '<span class="hint">Belum ada kategori. Silakan tambahkan.</span>';
-
-  // Filter produk sesuai tab admin aktif
-  const filteredProducts = products.filter(x => isUcapan ? isUcapanProduct(x) : isKeychainProduct(x));
+  }).join('') : `<span class="hint">Belum ada kategori ${isUcapan ? 'ucapan digital' : 'keychain'}. Silakan tambahkan.</span>`;
 
   $('#app').innerHTML = `
     <!-- Tab Navigasi Admin -->
@@ -1584,18 +1659,16 @@ async function viewAdmin(adminType = null) {
       <a href="#/admin-ucapan" class="btn sm ${isUcapan ? 'primary' : ''}" style="font-weight:600">💌 Kelola Ucapan Digital</a>
     </div>
 
-    <!-- Kelola Kategori (Hanya ditampilkan di Keychain) -->
-    ${!isUcapan ? `
-      <section class="panel">
-        <h2>Kategori Produk Keychain</h2>
-        <label for="nc">Tambah Kategori Baru</label>
-        <div class="up">
-          <input type="text" id="nc" placeholder="Contoh: Frame foto, Gantungan kunci, Aksesoris">
-          <button class="btn primary" type="button" id="addcat">Tambah</button>
-        </div>
-        <div class="chips" id="catlist" style="margin-top:14px">${catChipsHtml}</div>
-      </section>
-    ` : ''}
+    <!-- Kelola Kategori (Keychain & Ucapan Digital) -->
+    <section class="panel">
+      <h2>${isUcapan ? '💌 Kategori Ucapan Digital' : '🔑 Kategori Produk Keychain'}</h2>
+      <label for="nc">Tambah Kategori ${isUcapan ? 'Ucapan' : 'Keychain'} Baru</label>
+      <div class="up">
+        <input type="text" id="nc" placeholder="${isUcapan ? 'Contoh: Galery, Ucapan Ulangtahun, Wisuda, Anniversary' : 'Contoh: Frame foto, Gantungan kunci, Aksesoris'}">
+        <button class="btn primary" type="button" id="addcat">Tambah</button>
+      </div>
+      <div class="chips" id="catlist" style="margin-top:14px">${catChipsHtml}</div>
+    </section>
 
     <!-- Formulir Tambah / Edit Produk -->
     <form class="panel" id="productForm">
@@ -1729,28 +1802,38 @@ async function viewAdmin(adminType = null) {
     </section>
   `;
 
-  // Listener Kategori (Hanya jika mode Keychain)
-  if (!isUcapan) {
-    const addCat = async () => {
-      const val = $('#nc').value.trim();
-      if (!val) return;
-      try {
-        await apiAddCategory(val);
-        toast('Kategori ditambahkan');
-        viewAdmin(adminType);
-      } catch (e) {
-        toast(e.message || 'Gagal menambah kategori');
-      }
-    };
-    if ($('#addcat')) $('#addcat').onclick = addCat;
-    if ($('#nc')) $('#nc').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } };
+  // Listener Kategori (Keychain & Ucapan Digital)
+  const addCat = async () => {
+    const val = $('#nc').value.trim();
+    if (!val) return;
+    try {
+      await apiAddCategory(val, adminType);
+      toast(`Kategori "${val}" ditambahkan`);
+      viewAdmin(adminType);
+    } catch (e) {
+      toast(e.message || 'Gagal menambah kategori');
+    }
+  };
+  if ($('#addcat')) $('#addcat').onclick = addCat;
+  if ($('#nc')) $('#nc').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addCat(); } };
 
-    if ($('#catlist')) {
-      $('#catlist').onclick = async e => {
-        const btn = e.target.closest('[data-del-cat]');
-        if (!btn) return;
-        const catName = btn.dataset.delCat;
-        const count = products.filter(x => x.category === catName).length;
+  if ($('#catlist')) {
+    $('#catlist').onclick = async e => {
+      // Tombol Ubah / Edit
+      const editBtn = e.target.closest('[data-edit-cat]');
+      if (editBtn) {
+        const catName = editBtn.dataset.editCat;
+        openEditCategoryModal(catName, adminType, () => {
+          viewAdmin(adminType);
+        });
+        return;
+      }
+
+      // Tombol Hapus
+      const delBtn = e.target.closest('[data-del-cat]');
+      if (delBtn) {
+        const catName = delBtn.dataset.delCat;
+        const count = filteredProducts.filter(x => x.category === catName).length;
 
         let confirmMsg = `Hapus kategori "${catName}"?`;
         if (count > 0) {
@@ -1758,19 +1841,19 @@ async function viewAdmin(adminType = null) {
         }
 
         if (confirm(confirmMsg)) {
-          btn.disabled = true;
+          delBtn.disabled = true;
           try {
-            await apiDeleteCategory(catName);
+            await apiDeleteCategory(catName, adminType);
             toast(`Kategori "${catName}" berhasil dihapus`);
             viewAdmin(adminType);
           } catch (err) {
             console.error(err);
             toast(err.message || 'Gagal menghapus kategori');
-            btn.disabled = false;
+            delBtn.disabled = false;
           }
         }
-      };
-    }
+      }
+    };
   }
 
   // Preview Foto saat dipilih

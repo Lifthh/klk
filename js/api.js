@@ -18,6 +18,10 @@ const MOCK_PRODUCTS = [
 ];
 
 const MOCK_CATEGORIES = ['Frame foto', 'Gantungan kunci', 'Aksesoris'];
+const MOCK_UCAPAN_CATEGORIES = ['Galery', 'Ucapan Ulangtahun'];
+
+let _knownUcapanCategories = new Set(MOCK_UCAPAN_CATEGORIES);
+let _hasCategoryTypeColumn = null; // null = belum dicek, true = ada kolom 'type', false = belum ada
 
 // Helper Kompresi Gambar ke Blob (agar upload ke Supabase ringan dan cepat)
 function compressImageToBlob(file, max = 900) {
@@ -82,6 +86,7 @@ async function apiLogout() {
 function isUcapanProduct(p) {
   if (!p) return false;
   if (p.product_type === 'ucapan') return true;
+  if (p.category && _knownUcapanCategories.has(p.category)) return true;
   if (p.category === 'Galery' || p.category === 'Ucapan Ulangtahun') return true;
   if (p.link && String(p.link).trim().length > 0) return true;
   return false;
@@ -205,15 +210,85 @@ async function apiDeleteProduct(id) {
   if (error) throw error;
 }
 
-// ----------------- KATEGORI -----------------
-async function apiGetCategories() {
+// ----------------- KATEGORI (KEYCHAIN & UCAPAN DIGITAL) -----------------
+async function apiGetCategories(type = 'keychain') {
+  const isUcapan = type === 'ucapan';
+  const targetType = isUcapan ? 'ucapan' : 'keychain';
+  const mockStorageKey = isUcapan ? 'klk_mock_ucapan_cats' : 'klk_mock_cats';
+  const defaultList = isUcapan ? MOCK_UCAPAN_CATEGORIES : MOCK_CATEGORIES;
+
   if (!supabaseClient) {
     try {
-      const cached = localStorage.getItem('klk_mock_cats');
-      if (cached) return JSON.parse(cached);
+      const cached = localStorage.getItem(mockStorageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length) {
+          if (isUcapan) parsed.forEach(c => _knownUcapanCategories.add(c));
+          return parsed;
+        }
+      }
     } catch (_) {}
-    return MOCK_CATEGORIES;
+    if (isUcapan) defaultList.forEach(c => _knownUcapanCategories.add(c));
+    return defaultList;
   }
+
+  // 1. Jika kolom 'type' ada atau belum dicek di Supabase
+  if (_hasCategoryTypeColumn !== false) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('categories')
+        .select('name, type')
+        .order('name', { ascending: true });
+
+      if (!error && Array.isArray(data)) {
+        _hasCategoryTypeColumn = true;
+
+        // Registrasi kategori ucapan ke memory set
+        data.forEach(c => {
+          if (c.type === 'ucapan') _knownUcapanCategories.add(c.name);
+        });
+
+        const filtered = data
+          .filter(c => isUcapan ? (c.type === 'ucapan') : (!c.type || c.type === 'keychain'))
+          .map(c => c.name);
+
+        if (isUcapan && !filtered.length) {
+          // Jika ucapan belum ada baris di database, kembalikan default
+          defaultList.forEach(c => _knownUcapanCategories.add(c));
+          return defaultList;
+        }
+        return filtered;
+      }
+
+      // Jika kolom 'type' belum ada di tabel Supabase
+      if (error && (error.message?.includes('column') || error.code === 'PGRST204' || error.message?.includes('type'))) {
+        _hasCategoryTypeColumn = false;
+      } else if (error) {
+        throw error;
+      }
+    } catch (err) {
+      if (err && (err.message?.includes('column') || err.code === 'PGRST204' || err.message?.includes('type'))) {
+        _hasCategoryTypeColumn = false;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // 2. Fallback jika Supabase belum memiliki kolom 'type'
+  if (isUcapan) {
+    let cats = [];
+    try {
+      const cached = localStorage.getItem('klk_ucapan_cats');
+      if (cached) cats = JSON.parse(cached);
+    } catch (_) {}
+    if (!Array.isArray(cats) || !cats.length) {
+      cats = [...MOCK_UCAPAN_CATEGORIES];
+    }
+    cats.forEach(c => _knownUcapanCategories.add(c));
+    return cats;
+  }
+
   const { data, error } = await supabaseClient
     .from('categories')
     .select('name')
@@ -222,34 +297,244 @@ async function apiGetCategories() {
   return data.map(c => c.name);
 }
 
-async function apiAddCategory(name) {
+async function apiAddCategory(name, type = 'keychain') {
   const trimmed = (name || '').trim();
   if (!trimmed) return;
 
+  const isUcapan = type === 'ucapan';
+  const targetType = isUcapan ? 'ucapan' : 'keychain';
+  const mockStorageKey = isUcapan ? 'klk_mock_ucapan_cats' : 'klk_mock_cats';
+
+  if (isUcapan) _knownUcapanCategories.add(trimmed);
+
   if (!supabaseClient) {
-    let list = await apiGetCategories();
-    if (!list.includes(trimmed)) {
-      list.push(trimmed);
-      localStorage.setItem('klk_mock_cats', JSON.stringify(list));
+    let list = await apiGetCategories(targetType);
+    if (list.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      throw new Error(`Kategori "${trimmed}" sudah ada`);
     }
+    list.push(trimmed);
+    localStorage.setItem(mockStorageKey, JSON.stringify(list));
     return;
   }
+
+  // Coba insert dengan kolom 'type'
+  if (_hasCategoryTypeColumn !== false) {
+    try {
+      const { error } = await supabaseClient
+        .from('categories')
+        .insert([{ name: trimmed, type: targetType }]);
+
+      if (error) {
+        if (error.code === '23505') throw new Error(`Kategori "${trimmed}" sudah ada`);
+        if (error.message?.includes('column') || error.code === 'PGRST204' || error.message?.includes('type')) {
+          _hasCategoryTypeColumn = false;
+        } else {
+          throw error;
+        }
+      } else {
+        _hasCategoryTypeColumn = true;
+        return;
+      }
+    } catch (err) {
+      if (err.message && err.message.includes('sudah ada')) throw err;
+      if (err && (err.message?.includes('column') || err.code === 'PGRST204' || err.message?.includes('type'))) {
+        _hasCategoryTypeColumn = false;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // Fallback jika belum ada kolom 'type' di Supabase
+  if (isUcapan) {
+    let list = [];
+    try {
+      const cached = localStorage.getItem('klk_ucapan_cats');
+      if (cached) list = JSON.parse(cached);
+    } catch (_) {}
+    if (!Array.isArray(list) || !list.length) list = [...MOCK_UCAPAN_CATEGORIES];
+    if (list.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      throw new Error(`Kategori "${trimmed}" sudah ada`);
+    }
+    list.push(trimmed);
+    localStorage.setItem('klk_ucapan_cats', JSON.stringify(list));
+    return;
+  }
+
   const { error } = await supabaseClient
     .from('categories')
     .insert([{ name: trimmed }]);
   if (error) {
-    if (error.code === '23505') throw new Error('Kategori sudah ada');
+    if (error.code === '23505') throw new Error(`Kategori "${trimmed}" sudah ada`);
     throw error;
   }
 }
 
-async function apiDeleteCategory(name) {
+async function apiUpdateCategory(oldName, newName, type = 'keychain') {
+  const trimmedOld = (oldName || '').trim();
+  const trimmedNew = (newName || '').trim();
+  if (!trimmedOld || !trimmedNew) return;
+  if (trimmedOld === trimmedNew) return;
+
+  const isUcapan = type === 'ucapan';
+  const targetType = isUcapan ? 'ucapan' : 'keychain';
+  const mockStorageKey = isUcapan ? 'klk_mock_ucapan_cats' : 'klk_mock_cats';
+
+  // Periksa apakah nama baru sudah ada
+  const currentList = await apiGetCategories(targetType);
+  if (currentList.some(c => c.toLowerCase() === trimmedNew.toLowerCase() && c.toLowerCase() !== trimmedOld.toLowerCase())) {
+    throw new Error(`Kategori "${trimmedNew}" sudah ada`);
+  }
+
+  if (isUcapan) {
+    _knownUcapanCategories.delete(trimmedOld);
+    _knownUcapanCategories.add(trimmedNew);
+  }
+
+  // Update mode lokal / demo
   if (!supabaseClient) {
-    let list = await apiGetCategories();
-    list = list.filter(c => c !== name);
-    localStorage.setItem('klk_mock_cats', JSON.stringify(list));
+    let list = currentList.map(c => c === trimmedOld ? trimmedNew : c);
+    localStorage.setItem(mockStorageKey, JSON.stringify(list));
+
+    // Update produk di mock
+    try {
+      let prods = await apiGetProducts();
+      let changed = false;
+      prods = prods.map(p => {
+        if (p.category === trimmedOld) {
+          changed = true;
+          return { ...p, category: trimmedNew };
+        }
+        return p;
+      });
+      if (changed) {
+        localStorage.setItem('klk_mock_products', JSON.stringify(prods));
+      }
+    } catch (_) {}
     return;
   }
+
+  // Update mode Supabase
+  let updatedInDB = false;
+  if (_hasCategoryTypeColumn !== false) {
+    try {
+      const { error } = await supabaseClient
+        .from('categories')
+        .update({ name: trimmedNew })
+        .eq('name', trimmedOld)
+        .eq('type', targetType);
+
+      if (error) {
+        if (error.code === '23505') throw new Error(`Kategori "${trimmedNew}" sudah ada`);
+        if (error.message?.includes('column') || error.code === 'PGRST204' || error.message?.includes('type')) {
+          _hasCategoryTypeColumn = false;
+        } else {
+          throw error;
+        }
+      } else {
+        _hasCategoryTypeColumn = true;
+        updatedInDB = true;
+      }
+    } catch (err) {
+      if (err.message && err.message.includes('sudah ada')) throw err;
+      if (err && (err.message?.includes('column') || err.code === 'PGRST204' || err.message?.includes('type'))) {
+        _hasCategoryTypeColumn = false;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // Fallback update jika kolom type belum ada di tabel categories
+  if (!updatedInDB) {
+    if (isUcapan) {
+      let list = [];
+      try {
+        const cached = localStorage.getItem('klk_ucapan_cats');
+        if (cached) list = JSON.parse(cached);
+      } catch (_) {}
+      if (!Array.isArray(list) || !list.length) list = [...MOCK_UCAPAN_CATEGORIES];
+      list = list.map(c => c === trimmedOld ? trimmedNew : c);
+      localStorage.setItem('klk_ucapan_cats', JSON.stringify(list));
+    } else {
+      const { error } = await supabaseClient
+        .from('categories')
+        .update({ name: trimmedNew })
+        .eq('name', trimmedOld);
+      if (error) {
+        if (error.code === '23505') throw new Error(`Kategori "${trimmedNew}" sudah ada`);
+        throw error;
+      }
+    }
+  }
+
+  // Sinkronisasi otomatis ke seluruh produk di tabel products yang memakai kategori lama
+  try {
+    await supabaseClient
+      .from('products')
+      .update({ category: trimmedNew })
+      .eq('category', trimmedOld);
+  } catch (errProd) {
+    console.warn('Gagal sinkronisasi kategori ke produk:', errProd);
+  }
+}
+
+async function apiDeleteCategory(name, type = 'keychain') {
+  const isUcapan = type === 'ucapan';
+  const targetType = isUcapan ? 'ucapan' : 'keychain';
+  const mockStorageKey = isUcapan ? 'klk_mock_ucapan_cats' : 'klk_mock_cats';
+
+  if (isUcapan) _knownUcapanCategories.delete(name);
+
+  if (!supabaseClient) {
+    let list = await apiGetCategories(targetType);
+    list = list.filter(c => c !== name);
+    localStorage.setItem(mockStorageKey, JSON.stringify(list));
+    return;
+  }
+
+  // Hapus dari Supabase
+  if (_hasCategoryTypeColumn !== false) {
+    try {
+      const { data, error } = await supabaseClient
+        .from('categories')
+        .delete()
+        .eq('name', name)
+        .eq('type', targetType)
+        .select();
+
+      if (error) {
+        if (error.message?.includes('column') || error.code === 'PGRST204' || error.message?.includes('type')) {
+          _hasCategoryTypeColumn = false;
+        } else {
+          throw error;
+        }
+      } else {
+        _hasCategoryTypeColumn = true;
+        return;
+      }
+    } catch (err) {
+      if (err && (err.message?.includes('column') || err.code === 'PGRST204' || err.message?.includes('type'))) {
+        _hasCategoryTypeColumn = false;
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  // Fallback hapus jika kolom type belum ada
+  if (isUcapan) {
+    let list = [];
+    try {
+      const cached = localStorage.getItem('klk_ucapan_cats');
+      if (cached) list = JSON.parse(cached);
+    } catch (_) {}
+    if (!Array.isArray(list) || !list.length) list = [...MOCK_UCAPAN_CATEGORIES];
+    list = list.filter(c => c !== name);
+    localStorage.setItem('klk_ucapan_cats', JSON.stringify(list));
+    return;
+  }
+
   const { data, error } = await supabaseClient
     .from('categories')
     .delete()

@@ -2,12 +2,14 @@
 -- SQL SETUP UNTUK K.L.K MEMORIES (JALANKAN DI SUPABASE SQL EDITOR)
 -- ==============================================================
 
--- 1. Tabel Kategori
+-- 1. Tabel Kategori (Keychain & Ucapan Digital)
 create table if not exists public.categories (
   id bigint generated always as identity primary key,
-  name text unique not null,
+  name text not null,
+  type text default 'keychain',
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+create unique index if not exists categories_name_type_idx on public.categories (name, coalesce(type, 'keychain'));
 
 -- 2. Tabel Produk
 create table if not exists public.products (
@@ -16,6 +18,8 @@ create table if not exists public.products (
   category text not null,
   price numeric not null default 0,
   "desc" text default '',
+  link text default '',
+  product_type text default 'keychain',
   image text default '',
   image2 text default '',
   image3 text default '',
@@ -51,16 +55,18 @@ create policy "Owner bisa kelola produk"
   with check (true);
 
 -- 5. Data Awal Kategori & Contoh Produk
-insert into public.categories (name)
+insert into public.categories (name, type)
 values 
-  ('Frame foto'),
-  ('Gantungan kunci'),
-  ('Aksesoris')
-on conflict (name) do nothing;
+  ('Frame foto', 'keychain'),
+  ('Gantungan kunci', 'keychain'),
+  ('Aksesoris', 'keychain'),
+  ('Galery', 'ucapan'),
+  ('Ucapan Ulangtahun', 'ucapan')
+on conflict do nothing;
 
-insert into public.products (name, category, price, "desc", image, active)
+insert into public.products (name, category, price, "desc", image, active, product_type)
 values 
-  ('Frame Pink "My Girl"', 'Frame foto', 25000, 'Contoh produk pertama kamu. Ubah atau tambahkan produk baru lewat panel admin.', '', true);
+  ('Frame Pink "My Girl"', 'Frame foto', 25000, 'Contoh produk pertama kamu. Ubah atau tambahkan produk baru lewat panel admin.', '', true, 'keychain');
 
 -- 6. Storage Bucket untuk Foto Produk
 -- Membuat bucket public bernama 'product-images' jika belum ada
@@ -79,6 +85,7 @@ create policy "Owner bisa upload foto produk"
   to authenticated
   with check (bucket_id = 'product-images');
 
+-- Kebijakan Storage: Hanya owner yang login yang bisa hapus foto produk
 create policy "Owner bisa hapus foto produk"
   on storage.objects for delete
   to authenticated
