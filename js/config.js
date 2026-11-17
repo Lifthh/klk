@@ -3,10 +3,10 @@
 // ==============================================================
 
 const ENV_CONFIGS = {
-  // Database Uji Coba (Dev / Testing)
+  // Database Uji Coba (Dev / Testing) - Milik Anda Sendiri
   development: {
-    url: 'https://xuajgzmwljbjsguxntkp.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh1YWpnem13bGpianNndXhudGtwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTY2MjksImV4cCI6MjEwOTE5MjYyOX0.IeLv08VSeOy77orBfjiGMi7DMEFQcqhWB_0zFp_IPI4'
+    url: 'https://kkndvpsbapfqmenqyghx.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtrbmR2cHNiYXBmcW1lbnF5Z2h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NjMwOTEsImV4cCI6MjExMDQzOTA5MX0.0h26NGKyzJ12FLUcCfy1_zqXjpPU6HHowq_VJDTPy3M'
   },
 
   // Database Asli (Production Live)
